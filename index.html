@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RSN eSPORTS | Production Player Hub & Enterprise Portal</title>
     <!-- Supabase client (pinned version, UMD build exposes window.supabase) -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.9/dist/umd/supabase.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
 
@@ -419,8 +419,8 @@
               The anon key is safe to put in front-end code because Row Level
               Security (see supabase-setup.sql) limits each user to their own row.
            ===================================================================== */
-        const SUPABASE_URL = 'https://YOUR-PROJECT-REF.supabase.co';
-        const SUPABASE_ANON_KEY = 'YOUR-ANON-PUBLIC-KEY';
+        const SUPABASE_URL = 'https://hiitqxhhojuafzoibcky.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_KXUWx6EF7drPKV9q7jDlNw_P0TWEsCk';
         const WORKSPACE_TABLE = 'portal_workspaces';
 
         const isConfigured = !SUPABASE_URL.includes('YOUR-PROJECT') && !SUPABASE_ANON_KEY.includes('YOUR-ANON') && !!window.supabase;
@@ -1023,6 +1023,10 @@
             sb.auth.onAuthStateChange((_event, session) => {
                 setTimeout(() => handleSession(session), 0);
             });
+        }
+    </script>
+</body>
+</html>
         }
     </script>
 </body>
