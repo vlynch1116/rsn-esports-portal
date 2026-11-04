@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RSN eSPORTS | Production Player Hub & Enterprise Portal</title>
-    <!-- Supabase client (pinned version, UMD build exposes window.supabase) -->
+    <title>RSN eSPORTS | Player Hub</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.9/dist/umd/supabase.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
@@ -24,33 +23,14 @@
             --border-color: #21262d;
         }
 
-        body { background-color: var(--bg-dark); color: var(--text-main); line-height: 1.5; min-height: 100vh; }
+        body { background-color: var(--bg-dark); color: var(--text-main); line-height: 1.5; min-height: 100vh; display: flex; flex-direction: column; }
         :focus-visible { outline: 2px solid var(--primary-neon); outline-offset: 2px; }
 
-        /* --- Auth / app visibility --- */
-        #app-shell { display: none; flex-direction: column; min-height: 100vh; }
-        body.signed-in #app-shell { display: flex; }
-        body.signed-in #auth-screen { display: none; }
-        body.booting #auth-screen { display: none; }
-
-        #boot-screen { display: none; min-height: 100vh; align-items: center; justify-content: center; color: var(--text-muted); }
-        body.booting #boot-screen { display: flex; }
-
-        #auth-screen { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; gap: 24px; }
-        .auth-logo { width: 380px; max-width: 90vw; height: 95px; object-fit: contain; }
-        .auth-card { background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 12px; padding: 30px; width: 100%; max-width: 440px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        .auth-card h2 { color: var(--text-light); font-size: 1.4rem; margin-bottom: 6px; }
-        .auth-card .lead { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px; }
-        .auth-tabs { display: flex; gap: 8px; margin-bottom: 22px; background: var(--bg-input); padding: 4px; border-radius: 8px; border: 1px solid var(--border-color); }
-        .auth-tab { flex: 1; background: none; border: none; color: var(--text-main); padding: 10px; border-radius: 6px; font-weight: 700; cursor: pointer; font-size: 0.9rem; }
-        .auth-tab.active { background: linear-gradient(45deg, var(--primary-neon), var(--secondary-neon)); color: var(--bg-dark); }
-        .auth-form { display: none; }
-        .auth-form.active { display: block; }
-        .auth-form .btn-submit { width: 100%; margin-top: 6px; }
-        .auth-msg { font-size: 0.85rem; margin-top: 14px; min-height: 1.2em; }
-        .auth-msg.error { color: #f85149; }
-        .auth-msg.ok { color: #56d364; }
-        .config-warning { background: rgba(218,54,51,0.1); border: 1px solid rgba(218,54,51,0.4); color: #f85149; padding: 14px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 18px; display: none; }
+        /* Show/hide by sign-in state */
+        .signed-in-only { display: none !important; }
+        body.signed-in .signed-in-only { display: block !important; }
+        body.signed-in .signed-out-only { display: none !important; }
+        body.signed-in #header-user { display: flex !important; }
 
         /* --- Header --- */
         header {
@@ -63,32 +43,36 @@
         .logo-img { width: 100%; height: 100%; object-fit: contain; display: block; transition: transform 0.3s ease, filter 0.3s ease; }
         .logo-img:hover { transform: scale(1.02); filter: drop-shadow(0 0 10px rgba(0, 242, 254, 0.4)); }
         .header-controls { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+        #header-user { display: none; align-items: center; gap: 16px; }
+        #header-guest { display: flex; gap: 10px; }
 
         .user-chip { display: flex; flex-direction: column; align-items: flex-end; font-size: 0.8rem; color: var(--text-muted); }
         .user-chip strong { color: var(--text-light); font-size: 0.95rem; }
 
-        .admin-auth-btn {
-            background: rgba(218, 54, 51, 0.1); color: var(--text-light); border: 1px solid var(--accent-red);
-            padding: 10px 20px; border-radius: 6px; font-size: 0.85rem; font-weight: 700; cursor: pointer;
+        .header-btn {
+            background: #161b22; color: var(--text-main); border: 1px solid var(--border-color);
+            padding: 10px 18px; border-radius: 6px; font-size: 0.85rem; font-weight: 700; cursor: pointer;
             text-transform: uppercase; letter-spacing: 0.5px;
         }
-        .admin-auth-btn:hover { background: rgba(218, 54, 51, 0.2); }
+        .header-btn:hover { border-color: var(--primary-neon); color: var(--text-light); }
+        .header-btn.primary { background: linear-gradient(45deg, var(--primary-neon), var(--secondary-neon)); color: var(--bg-dark); border: none; }
+        .header-btn.logout { background: rgba(218, 54, 51, 0.1); border-color: var(--accent-red); color: var(--text-light); }
 
         .status-badge {
             background: linear-gradient(45deg, var(--primary-neon), var(--secondary-neon)); color: var(--bg-dark);
             padding: 6px 16px; border-radius: 20px; font-weight: 700; font-size: 0.8rem;
-            text-transform: uppercase; letter-spacing: 1px; border: none; cursor: default;
+            text-transform: uppercase; letter-spacing: 1px;
         }
-        .status-badge.saving { background: #f1c40f; }
-        .status-badge.error { background: var(--accent-red); color: #fff; cursor: pointer; }
+        .status-badge.offline { background: var(--accent-red); color: #fff; }
 
-        /* --- Workspace layout --- */
-        .workspace-wrapper { flex: 1; display: grid; grid-template-columns: 280px 1fr; width: 100%; background-color: var(--bg-dark); }
-        .crm-sidebar { background-color: var(--bg-panel); border-right: 1px solid var(--border-color); padding: 30px 20px; display: flex; flex-direction: column; justify-content: space-between; gap: 20px; }
+        /* --- Layout --- */
+        .workspace-wrapper { flex: 1; display: grid; grid-template-columns: 280px 1fr; width: 100%; }
+        .crm-sidebar { background-color: var(--bg-panel); border-right: 1px solid var(--border-color); padding: 30px 20px; }
         .sidebar-title { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-muted); margin-bottom: 15px; font-weight: 700; padding-left: 10px; }
         .nav-item { display: flex; align-items: center; width: 100%; background: none; border: none; color: var(--text-main); padding: 14px 16px; text-align: left; font-size: 0.95rem; border-radius: 8px; cursor: pointer; margin-bottom: 8px; transition: all 0.2s ease; font-weight: 600; }
         .nav-item:hover { background-color: rgba(255, 255, 255, 0.05); color: var(--text-light); }
         .nav-item.active { background: linear-gradient(45deg, var(--primary-neon), var(--secondary-neon)); color: var(--bg-dark); box-shadow: 0 4px 15px rgba(0, 242, 254, 0.25); }
+        .sidebar-note { margin-top: 24px; font-size: 0.8rem; color: var(--text-muted); padding: 0 10px; }
 
         .crm-content-pane { padding: 40px; overflow-y: auto; max-height: calc(100vh - 110px); }
         .crm-screen { display: none; max-width: 1200px; margin: 0 auto; }
@@ -101,6 +85,7 @@
 
         .panel { background-color: var(--bg-panel); padding: 28px; border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 30px; }
         .panel-title { color: var(--accent-red); margin-bottom: 15px; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 1px; }
+        .signin-prompt { background: var(--bg-panel); border: 1px dashed var(--border-color); border-radius: 12px; padding: 24px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; color: var(--text-muted); }
 
         /* --- Stats --- */
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px; margin-bottom: 35px; }
@@ -136,6 +121,7 @@
 
         /* --- Forms & tables --- */
         .form-section-title { font-size: 0.85rem; text-transform: uppercase; color: var(--primary-neon); letter-spacing: 1px; margin-bottom: 15px; font-weight: 700; }
+        .form-hint { font-size: 0.8rem; color: var(--text-muted); margin: -8px 0 15px; }
         .form-group { margin-bottom: 18px; }
         label { display: block; margin-bottom: 8px; font-size: 0.85rem; color: var(--text-main); font-weight: 600; }
         input, select { width: 100%; padding: 12px 16px; background-color: var(--bg-input); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-light); font-size: 0.95rem; }
@@ -147,17 +133,23 @@
         .btn-submit { background: linear-gradient(45deg, var(--primary-neon), var(--secondary-neon)); color: var(--bg-dark); border: none; padding: 14px 28px; font-weight: 700; border-radius: 6px; cursor: pointer; text-transform: uppercase; font-size: 0.9rem; }
         .btn-submit:disabled { opacity: 0.5; cursor: wait; }
         .btn-submit.red { background: var(--accent-red); color: #fff; }
-        .btn-submit:active { transform: scale(0.99); }
         .btn-mini-action { background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-weight: 600; }
         .btn-mini-action:hover { border-color: var(--primary-neon); }
         .btn-danger { background: var(--accent-red); color: var(--text-light); border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-weight: 600; }
 
         .table-section { margin-top: 35px; }
-        .table-section h3 { color: var(--text-light); font-size: 1.25rem; font-weight: 700; margin-bottom: 15px; }
+        .table-head-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 15px; }
+        .table-section h3 { color: var(--text-light); font-size: 1.25rem; font-weight: 700; }
+        .filter-toggle { display: flex; gap: 6px; }
+        .filter-toggle button { background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; font-weight: 600; }
+        .filter-toggle button.active { border-color: var(--primary-neon); color: var(--primary-neon); }
         .table-wrapper { width: 100%; overflow-x: auto; border: 1px solid var(--border-color); border-radius: 8px; background-color: var(--bg-panel); }
         table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.95rem; }
         th, td { padding: 14px 20px; border-bottom: 1px solid var(--border-color); white-space: nowrap; }
         th { background-color: #161b22; color: var(--text-light); }
+        tr.mine td:first-child { box-shadow: inset 3px 0 0 var(--primary-neon); }
+        .muted { color: var(--text-muted); font-size: 0.85rem; }
+        .by-you { color: var(--primary-neon); font-weight: 700; }
 
         .pill { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
         .pill.active { background-color: rgba(46, 164, 79, 0.15); color: #56d364; border: 1px solid rgba(46, 164, 79, 0.3); }
@@ -165,13 +157,31 @@
         .pill.xbox { background-color: rgba(16, 124, 16, 0.15); color: #3fb950; border: 1px solid rgba(16, 124, 16, 0.3); }
         .pill.steam { background-color: rgba(33, 38, 45, 0.8); color: #8b949e; border: 1px solid var(--border-color); }
 
-        .clear-btn { background-color: rgba(242, 96, 96, 0.1); color: #f85149; border: 1px solid rgba(248, 81, 73, 0.3); padding: 10px 14px; border-radius: 6px; font-size: 0.8rem; font-weight: 700; cursor: pointer; width: 100%; }
-
         /* --- Modals --- */
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: none; justify-content: center; align-items: center; z-index: 2000; padding: 20px; }
         .modal-overlay.active { display: flex; }
-        .modal-card { background: var(--bg-panel); border: 1px solid var(--border-color); width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto; padding: 30px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .modal-card { background: var(--bg-panel); border: 1px solid var(--border-color); width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; padding: 30px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         .modal-footer { margin-top: 20px; display: flex; justify-content: flex-end; gap: 12px; }
+
+        .auth-tabs { display: flex; gap: 8px; margin-bottom: 22px; background: var(--bg-input); padding: 4px; border-radius: 8px; border: 1px solid var(--border-color); }
+        .auth-tab { flex: 1; background: none; border: none; color: var(--text-main); padding: 10px; border-radius: 6px; font-weight: 700; cursor: pointer; font-size: 0.9rem; }
+        .auth-tab.active { background: linear-gradient(45deg, var(--primary-neon), var(--secondary-neon)); color: var(--bg-dark); }
+        .auth-form { display: none; }
+        .auth-form.active { display: block; }
+        .auth-form h2 { color: var(--text-light); font-size: 1.3rem; margin-bottom: 6px; }
+        .auth-form .lead { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px; }
+        .auth-form .btn-submit { width: 100%; margin-top: 6px; }
+        .auth-msg { font-size: 0.85rem; margin-top: 14px; min-height: 1.2em; }
+        .auth-msg.error { color: #f85149; }
+        .auth-msg.ok { color: #56d364; }
+        .auth-close { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.85rem; margin-top: 14px; width: 100%; }
+
+        .config-warning { background: rgba(218,54,51,0.1); border: 1px solid rgba(218,54,51,0.4); color: #f85149; padding: 14px 4%; font-size: 0.9rem; display: none; }
+
+        /* --- Toast --- */
+        #toast { position: fixed; bottom: 24px; right: 24px; background: var(--bg-card); border: 1px solid var(--primary-neon); color: var(--text-light); padding: 14px 20px; border-radius: 8px; font-size: 0.9rem; max-width: 380px; z-index: 3000; display: none; box-shadow: 0 6px 20px rgba(0,0,0,0.5); }
+        #toast.error { border-color: var(--accent-red); }
+        #toast.show { display: block; }
 
         @media (max-width: 992px) {
             .workspace-wrapper { grid-template-columns: 1fr; }
@@ -183,294 +193,348 @@
         }
     </style>
 </head>
-<body class="booting">
+<body>
 
-    <!-- ============ BOOT (checking saved session) ============ -->
-    <div id="boot-screen">Loading…</div>
+    <div class="config-warning" id="config-warning">
+        The Supabase library didn’t load, so data can’t be shown. Try a hard refresh (Ctrl+Shift+R), a different network, or turning off ad blockers.
+    </div>
 
-    <!-- ============ SIGN IN / CREATE ACCOUNT ============ -->
-    <section id="auth-screen">
-        <img src="image.webp" alt="RSN eSPORTS Logo" class="auth-logo">
+    <header>
+        <div class="logo-container">
+            <img src="image.webp" alt="RSN eSPORTS Logo" class="logo-img">
+        </div>
+        <div class="header-controls">
+            <div class="status-badge" id="live-status">● Connecting…</div>
+            <div id="header-guest" class="signed-out-only">
+                <button class="header-btn" onclick="openAuth('signin')">Sign in</button>
+                <button class="header-btn primary" onclick="openAuth('signup')">Create account</button>
+            </div>
+            <div id="header-user">
+                <div class="user-chip"><span>Signed in as</span><strong id="user-display-name">—</strong></div>
+                <button class="header-btn logout" onclick="logOut()">🔒 Log out</button>
+            </div>
+        </div>
+    </header>
 
-        <div class="auth-card">
-            <div class="config-warning" id="config-warning">
-                Supabase isn’t connected yet. Add your project URL and anon key in the <code>SUPABASE_URL</code> and <code>SUPABASE_ANON_KEY</code> lines near the top of the script.
+    <div class="workspace-wrapper">
+        <aside class="crm-sidebar">
+            <div class="sidebar-title">Navigation Hub</div>
+            <button class="nav-item active" onclick="switchTab('analytics', this)">📊 Portal Overview</button>
+            <button class="nav-item" onclick="switchTab('customers', this)">🎮 Players</button>
+            <button class="nav-item" onclick="switchTab('teams', this)">🛡️ Teams</button>
+            <button class="nav-item" onclick="switchTab('tournaments', this)">🏆 Tournaments</button>
+            <p class="sidebar-note">Everything here is shared. Anyone signed in can add, and you can edit or delete only what you added.</p>
+        </aside>
+
+        <main class="crm-content-pane">
+
+            <!-- Overview -->
+            <div id="screen-analytics" class="crm-screen active">
+                <div class="screen-header">
+                    <h2>Ecosystem Operations Dashboard</h2>
+                    <p>Live totals and matchups from everyone in the RSN community.</p>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-card"><div>Enrolled Competitors</div><div class="stat-val" id="stat-players">0</div></div>
+                    <div class="stat-card accent"><div>Registered Teams</div><div class="stat-val" id="stat-teams">0</div></div>
+                    <div class="stat-card alt"><div>Tournaments</div><div class="stat-val" id="stat-tournaments">0</div></div>
+                </div>
+                <div class="ticker-panel">
+                    <div class="ticker-header-row">
+                        <h4><span class="ticker-pulse"></span> Matchmaking Queue</h4>
+                        <span style="font-size:0.75rem; color:var(--text-muted); font-weight:700;">Updates live as people register</span>
+                    </div>
+                    <div class="ticker-container" id="match-ticker-box"></div>
+                </div>
             </div>
 
-            <div class="auth-tabs" role="tablist">
+            <!-- Players -->
+            <div id="screen-customers" class="crm-screen">
+                <div class="screen-header">
+                    <h2>Players</h2>
+                    <p>Every registered player across the community.</p>
+                </div>
+
+                <div class="signin-prompt signed-out-only">
+                    <span>Sign in to register players.</span>
+                    <button class="header-btn primary" onclick="openAuth('signin')">Sign in</button>
+                </div>
+
+                <div class="panel signed-in-only">
+                    <form id="player-form" onsubmit="registerPlayer(event)">
+                        <div class="form-section-title">Public profile</div>
+                        <p class="form-hint">Everyone can see these.</p>
+                        <div class="two-col">
+                            <div class="form-group"><label for="p-tag">Gamer tag</label><input type="text" id="p-tag" required maxlength="40" placeholder="Ex: FakerV2"></div>
+                            <div class="form-group"><label for="p-team-select">Team</label><select id="p-team-select"></select></div>
+                            <div class="form-group"><label for="p-tourney-select">Tournament</label><select id="p-tourney-select"></select></div>
+                        </div>
+                        <div class="network-grid">
+                            <div class="form-group"><label for="net-psn" style="color:#58a6ff">PlayStation Network</label><input type="text" id="net-psn" maxlength="40" placeholder="PSN ID"></div>
+                            <div class="form-group"><label for="net-xbox" style="color:#3fb950">Xbox Live</label><input type="text" id="net-xbox" maxlength="40" placeholder="Xbox Gamertag"></div>
+                            <div class="form-group"><label for="net-steam" style="color:#8b949e">Steam</label><input type="text" id="net-steam" maxlength="60" placeholder="Steam Custom URL"></div>
+                        </div>
+
+                        <div class="form-section-title">Private contact info</div>
+                        <p class="form-hint">Only you can see these.</p>
+                        <div class="contact-grid">
+                            <div class="form-group"><label for="p-name">Full name</label><input type="text" id="p-name" required maxlength="80" placeholder="Ex: John Doe"></div>
+                            <div class="form-group"><label for="p-email">Email</label><input type="email" id="p-email" required maxlength="120" placeholder="name@domain.com"></div>
+                            <div class="form-group"><label for="p-phone">Phone</label><input type="tel" id="p-phone" maxlength="30" placeholder="(555) 000-0000"></div>
+                        </div>
+                        <button type="submit" class="btn-submit">Register player</button>
+                    </form>
+                </div>
+
+                <div class="table-section">
+                    <div class="table-head-row">
+                        <h3>Registered players</h3>
+                        <div class="filter-toggle signed-in-only" data-filter-group="players">
+                            <button class="active" onclick="setFilter('players', 'all', this)">Everyone</button>
+                            <button onclick="setFilter('players', 'mine', this)">Added by me</button>
+                        </div>
+                    </div>
+                    <div class="table-wrapper">
+                        <table id="player-table">
+                            <thead><tr><th>Gamer Tag</th><th>Team</th><th>Tournament</th><th>Networks</th><th>Added by</th><th>Contact (private)</th><th>Actions</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Teams -->
+            <div id="screen-teams" class="crm-screen">
+                <div class="screen-header">
+                    <h2>Teams</h2>
+                    <p>Organizations created by the community.</p>
+                </div>
+
+                <div class="signin-prompt signed-out-only">
+                    <span>Sign in to create a team.</span>
+                    <button class="header-btn primary" onclick="openAuth('signin')">Sign in</button>
+                </div>
+
+                <div class="panel signed-in-only">
+                    <h4 class="panel-title">Add a team</h4>
+                    <form id="team-form" onsubmit="createTeam(event)">
+                        <div class="two-col">
+                            <div class="form-group"><label for="team-name">Team name</label><input type="text" id="team-name" required maxlength="60" placeholder="e.g. Towson Titans"></div>
+                            <div class="form-group"><label for="team-region">Home region</label><input type="text" id="team-region" required maxlength="60" placeholder="e.g. North America"></div>
+                        </div>
+                        <button type="submit" class="btn-submit red">Add team</button>
+                    </form>
+                </div>
+
+                <div class="table-section">
+                    <div class="table-head-row">
+                        <h3>All teams</h3>
+                        <div class="filter-toggle signed-in-only">
+                            <button class="active" onclick="setFilter('teams', 'all', this)">Everyone</button>
+                            <button onclick="setFilter('teams', 'mine', this)">Added by me</button>
+                        </div>
+                    </div>
+                    <div class="table-wrapper">
+                        <table id="teams-table">
+                            <thead><tr><th>Team</th><th>Home Region</th><th>Members</th><th>Added by</th><th>Actions</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tournaments -->
+            <div id="screen-tournaments" class="crm-screen">
+                <div class="screen-header">
+                    <h2>Tournaments</h2>
+                    <p>Scheduled events and brackets built from registered players.</p>
+                </div>
+
+                <div class="signin-prompt signed-out-only">
+                    <span>Sign in to schedule a tournament.</span>
+                    <button class="header-btn primary" onclick="openAuth('signin')">Sign in</button>
+                </div>
+
+                <div class="panel signed-in-only">
+                    <h4 class="panel-title">Add a tournament</h4>
+                    <form id="tournament-form" onsubmit="createTournament(event)">
+                        <div class="two-col">
+                            <div class="form-group"><label for="t-name">Event title</label><input type="text" id="t-name" required maxlength="80" placeholder="e.g. Call of Duty Challenge Cup"></div>
+                            <div class="form-group"><label for="t-game">Game</label><input type="text" id="t-game" required maxlength="60" placeholder="e.g. Warzone"></div>
+                            <div class="form-group"><label for="t-time">Start date & time</label><input type="datetime-local" id="t-time" required></div>
+                        </div>
+                        <button type="submit" class="btn-submit red">Add tournament</button>
+                    </form>
+                </div>
+
+                <div class="table-section">
+                    <div class="table-head-row">
+                        <h3>All tournaments</h3>
+                        <div class="filter-toggle signed-in-only">
+                            <button class="active" onclick="setFilter('tournaments', 'all', this)">Everyone</button>
+                            <button onclick="setFilter('tournaments', 'mine', this)">Added by me</button>
+                        </div>
+                    </div>
+                    <div class="table-wrapper">
+                        <table id="tournament-table">
+                            <thead><tr><th>Event</th><th>Game</th><th>Start Time</th><th>Enrolled</th><th>Added by</th><th>Bracket</th><th>Actions</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="bracket-display-zone" style="display:none;" class="bracket-workspace">
+                    <h3 id="bracket-view-title" style="color:var(--text-light); margin-bottom:5px;"></h3>
+                    <p id="bracket-view-meta" style="color:var(--text-muted); font-size:0.85rem; margin-bottom:20px;"></p>
+                    <div class="bracket-tree" id="bracket-tree-root"></div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Sign in / create account -->
+    <div class="modal-overlay" id="authModal">
+        <div class="modal-card">
+            <div class="auth-tabs">
                 <button class="auth-tab active" id="tab-signin" onclick="showAuthForm('signin')">Sign in</button>
                 <button class="auth-tab" id="tab-signup" onclick="showAuthForm('signup')">Create account</button>
             </div>
 
             <form id="signin-form" class="auth-form active" onsubmit="handleSignIn(event)">
                 <h2>Welcome back</h2>
-                <p class="lead">Sign in to pick up where you left off.</p>
-                <div class="form-group">
-                    <label for="si-email">Email</label>
-                    <input type="email" id="si-email" required autocomplete="email">
-                </div>
-                <div class="form-group">
-                    <label for="si-pass">Password</label>
-                    <input type="password" id="si-pass" required autocomplete="current-password">
-                </div>
+                <p class="lead">Sign in to add players, teams and tournaments.</p>
+                <div class="form-group"><label for="si-email">Email</label><input type="email" id="si-email" required autocomplete="email"></div>
+                <div class="form-group"><label for="si-pass">Password</label><input type="password" id="si-pass" required autocomplete="current-password"></div>
                 <button type="submit" class="btn-submit" id="si-btn">Sign in</button>
                 <div class="auth-msg" id="signin-msg"></div>
             </form>
 
             <form id="signup-form" class="auth-form" onsubmit="handleSignUp(event)">
-                <h2>Create your admin account</h2>
-                <p class="lead">You’ll get your own workspace to manage players, teams and tournaments.</p>
-                <div class="form-group">
-                    <label for="su-name">Admin display name</label>
-                    <input type="text" id="su-name" required maxlength="40" autocomplete="nickname" placeholder="e.g. CoachLynch">
-                </div>
-                <div class="form-group">
-                    <label for="su-email">Email</label>
-                    <input type="email" id="su-email" required autocomplete="email">
-                </div>
-                <div class="form-group">
-                    <label for="su-pass">Password (8+ characters)</label>
-                    <input type="password" id="su-pass" required minlength="8" autocomplete="new-password">
-                </div>
-                <div class="form-group">
-                    <label for="su-pass2">Confirm password</label>
-                    <input type="password" id="su-pass2" required minlength="8" autocomplete="new-password">
-                </div>
+                <h2>Create your account</h2>
+                <p class="lead">Your display name shows next to everything you add.</p>
+                <div class="form-group"><label for="su-name">Display name</label><input type="text" id="su-name" required maxlength="40" autocomplete="nickname" placeholder="e.g. CoachLynch"></div>
+                <div class="form-group"><label for="su-email">Email</label><input type="email" id="su-email" required autocomplete="email"></div>
+                <div class="form-group"><label for="su-pass">Password (8+ characters)</label><input type="password" id="su-pass" required minlength="8" autocomplete="new-password"></div>
+                <div class="form-group"><label for="su-pass2">Confirm password</label><input type="password" id="su-pass2" required minlength="8" autocomplete="new-password"></div>
                 <button type="submit" class="btn-submit" id="su-btn">Create account</button>
                 <div class="auth-msg" id="signup-msg"></div>
             </form>
-        </div>
-    </section>
 
-    <!-- ============ MAIN APP (only visible when signed in) ============ -->
-    <div id="app-shell">
-        <header>
-            <div class="logo-container">
-                <img src="image.webp" alt="RSN eSPORTS Logo" class="logo-img">
-            </div>
-            <div class="header-controls">
-                <div class="user-chip">
-                    <span>Signed in as</span>
-                    <strong id="user-display-name">—</strong>
-                </div>
-                <button class="status-badge" id="save-status" onclick="retrySave()" title="Your changes save automatically">● Saved</button>
-                <button class="admin-auth-btn" onclick="logOut()">🔒 Log out</button>
-            </div>
-        </header>
-
-        <div class="workspace-wrapper">
-            <aside class="crm-sidebar">
-                <div>
-                    <div class="sidebar-title">Navigation Hub</div>
-                    <button class="nav-item active" onclick="switchTab('analytics', this)">📊 Portal Overview</button>
-                    <button class="nav-item" onclick="switchTab('customers', this)">🎮 Player Registration</button>
-                    <button class="nav-item" onclick="switchTab('teams', this)">🛡️ Teams Directory</button>
-                    <button class="nav-item" onclick="switchTab('tournaments', this)">🏆 Arena Tournaments</button>
-                </div>
-                <div>
-                    <button class="clear-btn" onclick="purgeDatabase()">Reset my workspace</button>
-                </div>
-            </aside>
-
-            <main class="crm-content-pane">
-
-                <!-- Overview -->
-                <div id="screen-analytics" class="crm-screen active">
-                    <div class="screen-header">
-                        <h2>Ecosystem Operations Dashboard</h2>
-                        <p>Live matchups and totals from your registered players, teams and tournaments.</p>
-                    </div>
-                    <div class="stats-grid">
-                        <div class="stat-card"><div>Enrolled Competitors</div><div class="stat-val" id="stat-players">0</div></div>
-                        <div class="stat-card accent"><div>Registered Teams</div><div class="stat-val" id="stat-teams">0</div></div>
-                        <div class="stat-card alt"><div>Active Tournament Pools</div><div class="stat-val" id="stat-tournaments">0</div></div>
-                    </div>
-                    <div class="ticker-panel">
-                        <div class="ticker-header-row">
-                            <h4><span class="ticker-pulse"></span> Active Matchmaking Queue</h4>
-                            <span style="font-size:0.75rem; color:var(--text-muted); font-weight:700;">Synced to your registrations</span>
-                        </div>
-                        <div class="ticker-container" id="match-ticker-box"></div>
-                    </div>
-                </div>
-
-                <!-- Players -->
-                <div id="screen-customers" class="crm-screen">
-                    <div class="screen-header">
-                        <h2>Player Registration</h2>
-                        <p>Add players to your workspace. New entries show up in the matchmaking queue right away.</p>
-                    </div>
-                    <div class="panel">
-                        <form id="player-form" onsubmit="registerPlayerProfile(event)">
-                            <div class="form-section-title">Identity</div>
-                            <div class="contact-grid">
-                                <div class="form-group"><label for="p-name">Full name</label><input type="text" id="p-name" required placeholder="Ex: John Doe"></div>
-                                <div class="form-group"><label for="p-tag">Gamer tag</label><input type="text" id="p-tag" required placeholder="Ex: FakerV2"></div>
-                                <div class="form-group"><label for="p-email">Email</label><input type="email" id="p-email" required placeholder="name@domain.com"></div>
-                                <div class="form-group"><label for="p-phone">Phone</label><input type="tel" id="p-phone" required placeholder="(555) 000-0000"></div>
-                            </div>
-                            <div class="form-section-title">Roster</div>
-                            <div class="two-col">
-                                <div class="form-group"><label for="p-team-select">Team</label><select id="p-team-select"></select></div>
-                                <div class="form-group"><label for="p-tourney-select">Tournament</label><select id="p-tourney-select"></select></div>
-                            </div>
-                            <div class="form-section-title">Console handles</div>
-                            <div class="network-grid">
-                                <div class="form-group"><label for="net-psn" style="color:#58a6ff">PlayStation Network</label><input type="text" id="net-psn" placeholder="PSN ID"></div>
-                                <div class="form-group"><label for="net-xbox" style="color:#3fb950">Xbox Live</label><input type="text" id="net-xbox" placeholder="Xbox Gamertag"></div>
-                                <div class="form-group"><label for="net-steam" style="color:#8b949e">Steam</label><input type="text" id="net-steam" placeholder="Steam Custom URL"></div>
-                            </div>
-                            <button type="submit" class="btn-submit">Register player</button>
-                        </form>
-                    </div>
-                    <div class="table-section">
-                        <h3>Registered Players</h3>
-                        <div class="table-wrapper">
-                            <table id="player-table">
-                                <thead><tr>
-                                    <th>UID</th><th>Name</th><th>Gamer Tag</th><th>Contact</th><th>Team</th><th>Networks</th><th>Tournament</th><th>Actions</th>
-                                </tr></thead>
-                                <tbody></tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Teams -->
-                <div id="screen-teams" class="crm-screen">
-                    <div class="screen-header">
-                        <h2>Teams Directory</h2>
-                        <p>Create and manage the organizations in your workspace.</p>
-                    </div>
-                    <div class="panel">
-                        <h4 class="panel-title">Add a team</h4>
-                        <form id="team-form" onsubmit="createNewTeamRecord(event)">
-                            <div class="two-col">
-                                <div class="form-group"><label for="team-name">Team name</label><input type="text" id="team-name" required placeholder="e.g. Towson Titans"></div>
-                                <div class="form-group"><label for="team-region">Home region</label><input type="text" id="team-region" required placeholder="e.g. North America"></div>
-                            </div>
-                            <button type="submit" class="btn-submit red">Add team</button>
-                        </form>
-                    </div>
-                    <div class="table-section">
-                        <h3>Teams</h3>
-                        <div class="table-wrapper">
-                            <table id="teams-table">
-                                <thead><tr><th>Team ID</th><th>Name</th><th>Home Region</th><th>Members</th><th>Actions</th></tr></thead>
-                                <tbody></tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Tournaments -->
-                <div id="screen-tournaments" class="crm-screen">
-                    <div class="screen-header">
-                        <h2>Tournament Brackets</h2>
-                        <p>Schedule events and build brackets from your registered players.</p>
-                    </div>
-                    <div class="panel">
-                        <h4 class="panel-title">Add a tournament</h4>
-                        <form id="tournament-form" onsubmit="launchTournamentEvent(event)">
-                            <div class="two-col">
-                                <div class="form-group"><label for="t-name">Event title</label><input type="text" id="t-name" required placeholder="e.g. Call of Duty Challenge Cup"></div>
-                                <div class="form-group"><label for="t-game">Game</label><input type="text" id="t-game" required placeholder="e.g. Warzone"></div>
-                                <div class="form-group"><label for="t-time">Start date & time</label><input type="datetime-local" id="t-time" required></div>
-                            </div>
-                            <button type="submit" class="btn-submit red">Add tournament</button>
-                        </form>
-                    </div>
-                    <div class="table-section">
-                        <h3>Tournaments</h3>
-                        <div class="table-wrapper">
-                            <table id="tournament-table">
-                                <thead><tr><th>ID</th><th>Event</th><th>Game</th><th>Start Time</th><th>Enrolled</th><th>Bracket</th><th>Actions</th></tr></thead>
-                                <tbody></tbody>
-                            </table>
-                        </div>
-                    </div>
-                    <div id="bracket-display-zone" style="display:none;" class="bracket-workspace">
-                        <h3 id="bracket-view-title" style="color:var(--text-light); margin-bottom:5px;"></h3>
-                        <p id="bracket-view-meta" style="color:var(--text-muted); font-size:0.85rem; margin-bottom:20px;"></p>
-                        <div class="bracket-tree" id="bracket-tree-root"></div>
-                    </div>
-                </div>
-
-            </main>
+            <button class="auth-close" onclick="closeModal('authModal')">Keep browsing without signing in</button>
         </div>
     </div>
 
-    <!-- Edit modal -->
+    <!-- Edit -->
     <div class="modal-overlay" id="editModal">
         <div class="modal-card">
             <h3 id="editModalTitle" style="color: var(--primary-neon); margin-bottom: 15px;">Edit</h3>
             <div id="editModalFormContent"></div>
             <div class="modal-footer">
                 <button class="btn-mini-action" onclick="closeModal('editModal')">Cancel</button>
-                <button class="btn-submit" id="editModalSaveBtn">Save changes</button>
+                <button class="btn-submit" id="editModalSaveBtn" onclick="saveEdit()">Save changes</button>
             </div>
         </div>
     </div>
 
+    <div id="toast" role="status" aria-live="polite"></div>
+
     <script>
         /* =====================================================================
-           1. CONFIG — paste your values from Supabase:
-              Dashboard > Project Settings > API
-              The anon key is safe to put in front-end code because Row Level
-              Security (see supabase-setup.sql) limits each user to their own row.
+           CONFIG
            ===================================================================== */
         const SUPABASE_URL = 'https://hiitqxhhojuafzoibcky.supabase.co';
-        const SUPABASE_ANON_KEY = 'sb_publishable_KXUWx6EF7drPKV9q7jDlNw_P0TWEsCk';
-        const WORKSPACE_TABLE = 'portal_workspaces';
+        const SUPABASE_KEY = 'sb_publishable_KXUWx6EF7drPKV9q7jDlNw_P0TWEsCk';
 
-        const isConfigured = !SUPABASE_URL.includes('YOUR-PROJECT') && !SUPABASE_ANON_KEY.includes('YOUR-ANON') && !!window.supabase;
-        const sb = isConfigured ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+        const sb = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
 
         /* =====================================================================
-           2. STATE
+           STATE
            ===================================================================== */
         let currentUser = null;
-        let state = emptyState();
+        let data = { teams: [], tournaments: [], players: [], privateById: {} };
+        const filters = { players: 'all', teams: 'all', tournaments: 'all' };
         let tickerLoopInterval = null;
+        let refreshTimer = null;
         let currentEditingItem = null;
-        let saveTimer = null;
-        let hasUnsavedChanges = false;
+        let firstSessionSeen = false;
 
-        function emptyState() {
-            return {
-                players: [],
-                teams: [{ id: 'TM-01', name: 'Free Agent', region: 'Global Network' }],
-                tournaments: []
-            };
-        }
-
-        function normalizeState(raw) {
-            const base = emptyState();
-            if (!raw || typeof raw !== 'object') return base;
-            return {
-                players: Array.isArray(raw.players) ? raw.players : base.players,
-                teams: Array.isArray(raw.teams) && raw.teams.length ? raw.teams : base.teams,
-                tournaments: Array.isArray(raw.tournaments) ? raw.tournaments : base.tournaments
-            };
-        }
-
-        function newId(prefix) {
-            return `${prefix}-${Date.now().toString(36).slice(-4).toUpperCase()}${Math.random().toString(36).slice(2, 4).toUpperCase()}`;
-        }
-
-        // Escape anything user-typed before it goes into innerHTML
+        /* =====================================================================
+           HELPERS
+           ===================================================================== */
         function esc(value) {
             return String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
         }
+        const val = id => document.getElementById(id).value.trim();
+        const isMine = row => !!currentUser && row.created_by === currentUser.id;
+        const author = row => isMine(row) ? '<span class="by-you">You</span>' : esc(row.profiles?.display_name || 'Unknown');
+        const teamName = id => data.teams.find(t => t.id === id)?.name || 'Free Agent';
+        const findTourney = id => data.tournaments.find(t => t.id === id);
+        const visible = (kind, rows) => filters[kind] === 'mine' ? rows.filter(isMine) : rows;
+
+        // ISO timestamp -> value for <input type="datetime-local">
+        function toLocalInput(iso) {
+            if (!iso) return '';
+            const d = new Date(iso);
+            return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+        }
+        const toIso = local => local ? new Date(local).toISOString() : null;
+
+        let toastTimer = null;
+        function showToast(msg, isError = false) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.className = 'show' + (isError ? ' error' : '');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => t.className = '', isError ? 6000 : 3000);
+        }
+
+        function friendlyError(error) {
+            if (/row-level security|permission denied/i.test(error.message)) return 'You can only change things you added.';
+            if (/relation .* does not exist|schema cache/i.test(error.message)) return 'The database tables are missing. Run supabase-shared-setup.sql in Supabase.';
+            return error.message;
+        }
+
+        function requireSignIn() {
+            if (currentUser) return true;
+            openAuth('signin');
+            return false;
+        }
+
+        function setLive(on) {
+            const el = document.getElementById('live-status');
+            el.textContent = on ? '● Live' : '● Offline';
+            el.classList.toggle('offline', !on);
+        }
+
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+        function switchTab(tabId, btn) {
+            document.querySelectorAll('.crm-screen').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+            document.getElementById(`screen-${tabId}`).classList.add('active');
+            btn.classList.add('active');
+        }
+
+        function setFilter(kind, mode, btn) {
+            filters[kind] = mode;
+            btn.parentElement.querySelectorAll('button').forEach(b => b.classList.toggle('active', b === btn));
+            renderAll();
+        }
 
         /* =====================================================================
-           3. AUTH
+           AUTH
            ===================================================================== */
+        function openAuth(which) {
+            showAuthForm(which);
+            document.getElementById('authModal').classList.add('active');
+        }
+
         function showAuthForm(which) {
-            document.getElementById('signin-form').classList.toggle('active', which === 'signin');
-            document.getElementById('signup-form').classList.toggle('active', which === 'signup');
-            document.getElementById('tab-signin').classList.toggle('active', which === 'signin');
-            document.getElementById('tab-signup').classList.toggle('active', which === 'signup');
+            ['signin', 'signup'].forEach(k => {
+                document.getElementById(`${k}-form`).classList.toggle('active', k === which);
+                document.getElementById(`tab-${k}`).classList.toggle('active', k === which);
+            });
             setAuthMsg('signin-msg', '');
             setAuthMsg('signup-msg', '');
         }
@@ -483,246 +547,365 @@
 
         async function handleSignUp(e) {
             e.preventDefault();
-            if (!sb) return setAuthMsg('signup-msg', 'Supabase isn’t connected yet.');
-
-            const name = document.getElementById('su-name').value.trim();
-            const email = document.getElementById('su-email').value.trim();
+            const name = val('su-name'), email = val('su-email');
             const pass = document.getElementById('su-pass').value;
-            const pass2 = document.getElementById('su-pass2').value;
-
-            if (pass !== pass2) return setAuthMsg('signup-msg', 'Passwords don’t match.');
+            if (pass !== document.getElementById('su-pass2').value) return setAuthMsg('signup-msg', 'Passwords don’t match.');
 
             const btn = document.getElementById('su-btn');
             btn.disabled = true;
-            const { data, error } = await sb.auth.signUp({
-                email,
-                password: pass,
-                options: {
-                    data: { display_name: name },
-                    emailRedirectTo: window.location.origin + window.location.pathname
-                }
+            const { data: res, error } = await sb.auth.signUp({
+                email, password: pass,
+                options: { data: { display_name: name }, emailRedirectTo: window.location.origin + window.location.pathname }
             });
             btn.disabled = false;
 
             if (error) return setAuthMsg('signup-msg', error.message);
-
-            // Supabase returns a user with no identities when the email is already registered
-            if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+            if (res.user && Array.isArray(res.user.identities) && res.user.identities.length === 0) {
                 return setAuthMsg('signup-msg', 'An account with that email already exists. Sign in instead.');
             }
-
-            if (!data.session) {
+            if (!res.session) {
                 document.getElementById('signup-form').reset();
                 return setAuthMsg('signup-msg', 'Account created. Check your email for a confirmation link, then sign in.', 'ok');
             }
-            // If email confirmation is off, the session arrives immediately and onAuthStateChange takes over.
         }
 
         async function handleSignIn(e) {
             e.preventDefault();
-            if (!sb) return setAuthMsg('signin-msg', 'Supabase isn’t connected yet.');
-
-            const email = document.getElementById('si-email').value.trim();
-            const pass = document.getElementById('si-pass').value;
-
             const btn = document.getElementById('si-btn');
             btn.disabled = true;
-            const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+            const { error } = await sb.auth.signInWithPassword({
+                email: val('si-email'),
+                password: document.getElementById('si-pass').value
+            });
             btn.disabled = false;
-
             if (error) {
-                const msg = /confirm/i.test(error.message)
+                return setAuthMsg('signin-msg', /confirm/i.test(error.message)
                     ? 'Confirm your email first. Check your inbox for the link.'
-                    : 'Email or password is incorrect.';
-                return setAuthMsg('signin-msg', msg);
+                    : 'Email or password is incorrect.');
             }
             document.getElementById('signin-form').reset();
         }
 
         async function logOut() {
-            await flushSave();
-            if (hasUnsavedChanges && !confirm('Some changes haven’t saved yet. Log out anyway?')) return;
             await sb.auth.signOut();
+            showToast('Logged out. You can still browse everything.');
         }
 
-        async function handleSession(session) {
+        function handleSession(session) {
             const user = session?.user || null;
-
-            if (!user) {
-                currentUser = null;
-                state = emptyState();
-                clearInterval(tickerLoopInterval);
-                document.getElementById('bracket-display-zone').style.display = 'none';
-                document.body.classList.remove('booting', 'signed-in');
-                return;
-            }
-
-            // Token refreshes fire this too; don't reload the same workspace
-            if (currentUser && currentUser.id === user.id) return;
-
+            const changed = (user?.id || null) !== (currentUser?.id || null);
             currentUser = user;
+
+            document.body.classList.toggle('signed-in', !!user);
             document.getElementById('user-display-name').textContent =
-                user.user_metadata?.display_name || user.email;
+                user ? (user.user_metadata?.display_name || user.email) : '';
+            if (user) closeModal('authModal');
 
-            document.body.classList.add('booting');
-            const ok = await loadWorkspace();
-            document.body.classList.remove('booting');
-
-            if (!ok) {
-                currentUser = null;
-                document.body.classList.remove('signed-in');
-                setAuthMsg('signin-msg', 'Signed in, but your workspace couldn’t load. Check that supabase-setup.sql has been run, then try again.');
-                await sb.auth.signOut();
-                return;
+            if (changed || !firstSessionSeen) {
+                firstSessionSeen = true;
+                if (!user) Object.keys(filters).forEach(k => filters[k] = 'all');
+                refresh();
             }
-
-            document.body.classList.add('signed-in');
-            renderViewPipeline();
-            rebootMatchTickerLoop();
         }
 
         /* =====================================================================
-           4. CLOUD SAVE / LOAD
+           DATA
            ===================================================================== */
-        async function loadWorkspace() {
-            const { data, error } = await sb
-                .from(WORKSPACE_TABLE)
-                .select('data')
-                .eq('user_id', currentUser.id)
-                .maybeSingle();
-
-            if (error) { console.error(error); return false; }
-
-            state = normalizeState(data?.data);
-            if (!data) await saveNow(); // first sign-in: create the row
-            setSaveStatus('saved');
-            return true;
-        }
-
-        function scheduleSave() {
-            hasUnsavedChanges = true;
-            setSaveStatus('saving');
-            clearTimeout(saveTimer);
-            saveTimer = setTimeout(saveNow, 600);
-        }
-
-        async function saveNow() {
-            clearTimeout(saveTimer);
-            saveTimer = null;
-            if (!currentUser) return false;
-
-            const uid = currentUser.id;
-            const snapshot = JSON.parse(JSON.stringify(state));
-            setSaveStatus('saving');
-
-            const { error } = await sb.from(WORKSPACE_TABLE).upsert({
-                user_id: uid,
-                data: snapshot,
-                updated_at: new Date().toISOString()
-            });
-
+        async function refresh() {
+            const sel = '*, profiles(display_name)';
+            const [teams, tourneys, players] = await Promise.all([
+                sb.from('teams').select(sel).order('created_at'),
+                sb.from('tournaments').select(sel).order('starts_at', { ascending: true, nullsFirst: false }),
+                sb.from('players').select(sel).order('created_at')
+            ]);
+            const error = teams.error || tourneys.error || players.error;
             if (error) {
                 console.error(error);
-                hasUnsavedChanges = true;
-                setSaveStatus('error');
-                return false;
-            }
-            hasUnsavedChanges = false;
-            setSaveStatus('saved');
-            return true;
-        }
-
-        async function flushSave() {
-            if (saveTimer || hasUnsavedChanges) await saveNow();
-        }
-
-        function retrySave() {
-            if (hasUnsavedChanges) saveNow();
-        }
-
-        function setSaveStatus(status) {
-            const el = document.getElementById('save-status');
-            el.classList.remove('saving', 'error');
-            if (status === 'saving') { el.classList.add('saving'); el.textContent = '● Saving…'; }
-            else if (status === 'error') { el.classList.add('error'); el.textContent = '● Not saved: click to retry'; }
-            else { el.textContent = '● Saved'; }
-        }
-
-        window.addEventListener('beforeunload', e => {
-            if (hasUnsavedChanges) { e.preventDefault(); e.returnValue = ''; }
-        });
-
-        // Every data change goes through here
-        function commitToDisk() {
-            renderViewPipeline();
-            rebootMatchTickerLoop();
-            scheduleSave();
-        }
-
-        /* =====================================================================
-           5. UI HELPERS
-           ===================================================================== */
-        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
-
-        function switchTab(tabId, btn) {
-            document.querySelectorAll('.crm-screen').forEach(s => s.classList.remove('active'));
-            document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
-            document.getElementById(`screen-${tabId}`).classList.add('active');
-            btn.classList.add('active');
-        }
-
-        /* =====================================================================
-           6. MATCH TICKER
-           ===================================================================== */
-        function computeLiveTickerFeed() {
-            const container = document.getElementById('match-ticker-box');
-            if (!container) return;
-            container.innerHTML = '';
-
-            if (state.players.length === 0 || state.tournaments.length === 0) {
-                container.innerHTML = `<div class="empty-note">No matchups yet. Add a tournament, then register at least two players in it.</div>`;
+                showToast(friendlyError(error), true);
                 return;
             }
 
-            let matchPairsTracked = 0;
+            data.teams = teams.data;
+            data.tournaments = tourneys.data;
+            data.players = players.data;
+            data.privateById = {};
+
+            if (currentUser) {
+                const priv = await sb.from('player_private').select('player_id, full_name, email, phone');
+                if (!priv.error) priv.data.forEach(r => data.privateById[r.player_id] = r);
+            }
+            renderAll();
+        }
+
+        function queueRefresh() {
+            clearTimeout(refreshTimer);
+            refreshTimer = setTimeout(refresh, 300);
+        }
+
+        // Run a write, show a message, reload
+        async function runWrite(promise, okMsg) {
+            const { error } = await promise;
+            if (error) { console.error(error); showToast(friendlyError(error), true); return false; }
+            if (okMsg) showToast(okMsg);
+            await refresh();
+            return true;
+        }
+
+        async function registerPlayer(e) {
+            e.preventDefault();
+            if (!requireSignIn()) return;
+            const btn = e.submitter; if (btn) btn.disabled = true;
+
+            const { data: row, error } = await sb.from('players').insert({
+                tag: val('p-tag'),
+                team_id: val('p-team-select') || null,
+                tournament_id: val('p-tourney-select') || null,
+                psn: val('net-psn'), xbox: val('net-xbox'), steam: val('net-steam')
+            }).select('id').single();
+
+            if (error) { if (btn) btn.disabled = false; return showToast(friendlyError(error), true); }
+
+            const { error: privErr } = await sb.from('player_private').insert({
+                player_id: row.id, full_name: val('p-name'), email: val('p-email'), phone: val('p-phone')
+            });
+
+            if (btn) btn.disabled = false;
+            document.getElementById('player-form').reset();
+            showToast(privErr ? 'Player added, but contact info didn’t save: ' + friendlyError(privErr) : 'Player registered.', !!privErr);
+            refresh();
+        }
+
+        async function createTeam(e) {
+            e.preventDefault();
+            if (!requireSignIn()) return;
+            const ok = await runWrite(sb.from('teams').insert({ name: val('team-name'), region: val('team-region') }), 'Team added.');
+            if (ok) document.getElementById('team-form').reset();
+        }
+
+        async function createTournament(e) {
+            e.preventDefault();
+            if (!requireSignIn()) return;
+            const ok = await runWrite(sb.from('tournaments').insert({
+                name: val('t-name'), game: val('t-game'), starts_at: toIso(val('t-time'))
+            }), 'Tournament added.');
+            if (ok) document.getElementById('tournament-form').reset();
+        }
+
+        async function removeItem(kind, id) {
+            const labels = {
+                players: 'Remove this player?',
+                teams: 'Delete this team? Its players become Free Agents.',
+                tournaments: 'Cancel this tournament? Its players stay registered but leave the event.'
+            };
+            if (!confirm(labels[kind])) return;
+            const ok = await runWrite(sb.from(kind).delete().eq('id', id), 'Deleted.');
+            if (ok && kind === 'tournaments') document.getElementById('bracket-display-zone').style.display = 'none';
+        }
+
+        /* =====================================================================
+           EDIT
+           ===================================================================== */
+        function openEdit(kind, id) {
+            const row = data[kind].find(r => r.id === id);
+            if (!row || !isMine(row)) return showToast('You can only edit things you added.', true);
+            currentEditingItem = { kind, id };
+            const pane = document.getElementById('editModalFormContent');
+            const title = document.getElementById('editModalTitle');
+
+            if (kind === 'players') {
+                const priv = data.privateById[id] || {};
+                title.textContent = `Edit player: ${row.tag}`;
+                pane.innerHTML = `
+                    <div class="form-section-title">Public profile</div>
+                    <div class="form-group"><label>Gamer tag</label><input type="text" id="m-tag" maxlength="40" value="${esc(row.tag)}"></div>
+                    <div class="form-group"><label>Team</label><select id="m-team">${teamOptions(row.team_id)}</select></div>
+                    <div class="form-group"><label>Tournament</label><select id="m-tourney">${tourneyOptions(row.tournament_id)}</select></div>
+                    <div class="form-group"><label>PSN</label><input type="text" id="m-psn" maxlength="40" value="${esc(row.psn)}"></div>
+                    <div class="form-group"><label>Xbox</label><input type="text" id="m-xbox" maxlength="40" value="${esc(row.xbox)}"></div>
+                    <div class="form-group"><label>Steam</label><input type="text" id="m-steam" maxlength="60" value="${esc(row.steam)}"></div>
+                    <div class="form-section-title" style="margin-top:15px;">Private contact info</div>
+                    <div class="form-group"><label>Full name</label><input type="text" id="m-name" maxlength="80" value="${esc(priv.full_name)}"></div>
+                    <div class="form-group"><label>Email</label><input type="email" id="m-email" maxlength="120" value="${esc(priv.email)}"></div>
+                    <div class="form-group"><label>Phone</label><input type="text" id="m-phone" maxlength="30" value="${esc(priv.phone)}"></div>`;
+            } else if (kind === 'teams') {
+                title.textContent = 'Edit team';
+                pane.innerHTML = `
+                    <div class="form-group"><label>Team name</label><input type="text" id="m-tname" maxlength="60" value="${esc(row.name)}"></div>
+                    <div class="form-group"><label>Home region</label><input type="text" id="m-region" maxlength="60" value="${esc(row.region)}"></div>`;
+            } else {
+                title.textContent = 'Edit tournament';
+                pane.innerHTML = `
+                    <div class="form-group"><label>Event title</label><input type="text" id="m-trn-name" maxlength="80" value="${esc(row.name)}"></div>
+                    <div class="form-group"><label>Game</label><input type="text" id="m-game" maxlength="60" value="${esc(row.game)}"></div>
+                    <div class="form-group"><label>Start time</label><input type="datetime-local" id="m-time" value="${esc(toLocalInput(row.starts_at))}"></div>`;
+            }
+            document.getElementById('editModal').classList.add('active');
+        }
+
+        async function saveEdit() {
+            if (!currentEditingItem) return;
+            const { kind, id } = currentEditingItem;
+            const btn = document.getElementById('editModalSaveBtn');
+            btn.disabled = true;
+            let ok;
+
+            if (kind === 'players') {
+                ok = await runWrite(sb.from('players').update({
+                    tag: val('m-tag'), team_id: val('m-team') || null, tournament_id: val('m-tourney') || null,
+                    psn: val('m-psn'), xbox: val('m-xbox'), steam: val('m-steam')
+                }).eq('id', id));
+                if (ok) {
+                    ok = await runWrite(sb.from('player_private').upsert({
+                        player_id: id, full_name: val('m-name'), email: val('m-email'), phone: val('m-phone')
+                    }, { onConflict: 'player_id' }), 'Player updated.');
+                }
+            } else if (kind === 'teams') {
+                ok = await runWrite(sb.from('teams').update({ name: val('m-tname'), region: val('m-region') }).eq('id', id), 'Team updated.');
+            } else {
+                ok = await runWrite(sb.from('tournaments').update({
+                    name: val('m-trn-name'), game: val('m-game'), starts_at: toIso(val('m-time'))
+                }).eq('id', id), 'Tournament updated.');
+            }
+
+            btn.disabled = false;
+            if (ok) closeModal('editModal');
+        }
+
+        /* =====================================================================
+           RENDER
+           ===================================================================== */
+        function teamOptions(selected) {
+            return `<option value="">Free Agent</option>` + data.teams.map(t =>
+                `<option value="${esc(t.id)}" ${t.id === selected ? 'selected' : ''}>${esc(t.name)}</option>`).join('');
+        }
+        function tourneyOptions(selected) {
+            return `<option value="">None</option>` + data.tournaments.map(t =>
+                `<option value="${esc(t.id)}" ${t.id === selected ? 'selected' : ''}>${esc(t.name)}</option>`).join('');
+        }
+
+        function ownerButtons(kind, row) {
+            if (!isMine(row)) return '<span class="muted">—</span>';
+            const del = { players: 'Remove', teams: 'Delete', tournaments: 'Cancel event' }[kind];
+            return `<button class="btn-mini-action" onclick="openEdit('${kind}', '${esc(row.id)}')">Edit</button>
+                    <button class="btn-danger" onclick="removeItem('${kind}', '${esc(row.id)}')">${del}</button>`;
+        }
+
+        function renderAll() {
+            document.getElementById('stat-players').textContent = data.players.length;
+            document.getElementById('stat-teams').textContent = data.teams.length;
+            document.getElementById('stat-tournaments').textContent = data.tournaments.length;
+
+            // Keep the user's current dropdown choice when live updates arrive
+            const teamSel = document.getElementById('p-team-select');
+            const tourSel = document.getElementById('p-tourney-select');
+            const keepTeam = teamSel.value, keepTour = tourSel.value;
+            teamSel.innerHTML = teamOptions(keepTeam);
+            tourSel.innerHTML = tourneyOptions(keepTour);
+
+            // Players
+            const players = visible('players', data.players);
+            document.querySelector('#player-table tbody').innerHTML = players.map(p => {
+                let badges = '';
+                if (p.psn) badges += `<span class="pill psn">PSN: ${esc(p.psn)}</span> `;
+                if (p.xbox) badges += `<span class="pill xbox">Xbox: ${esc(p.xbox)}</span> `;
+                if (p.steam) badges += `<span class="pill steam">Steam: ${esc(p.steam)}</span>`;
+                if (!badges) badges = '<span class="muted">None</span>';
+
+                const t = findTourney(p.tournament_id);
+                const priv = data.privateById[p.id];
+                const contact = isMine(p) && priv
+                    ? `<div style="color:var(--text-light); font-weight:600;">${esc(priv.full_name)}</div>
+                       <div class="muted">📧 ${esc(priv.email)}</div>
+                       ${priv.phone ? `<div class="muted">📱 ${esc(priv.phone)}</div>` : ''}`
+                    : '<span class="muted">🔒 Private</span>';
+
+                return `<tr class="${isMine(p) ? 'mine' : ''}">
+                    <td><strong style="color:var(--primary-neon);">${esc(p.tag)}</strong></td>
+                    <td><span style="color:var(--secondary-neon); font-weight:600;">${esc(teamName(p.team_id))}</span></td>
+                    <td>${t ? `<span class="pill active">${esc(t.name)}</span>` : '<span class="muted">None</span>'}</td>
+                    <td><div style="display:flex; gap:4px; flex-wrap:wrap;">${badges}</div></td>
+                    <td>${author(p)}</td>
+                    <td style="font-size:0.85rem; line-height:1.4;">${contact}</td>
+                    <td>${ownerButtons('players', p)}</td>
+                </tr>`;
+            }).join('') || `<tr><td colspan="7" class="muted" style="text-align:center;">No players to show yet.</td></tr>`;
+
+            // Teams
+            const teams = visible('teams', data.teams);
+            document.querySelector('#teams-table tbody').innerHTML = teams.map(t => {
+                const count = data.players.filter(p => p.team_id === t.id).length;
+                return `<tr class="${isMine(t) ? 'mine' : ''}">
+                    <td><strong>${esc(t.name)}</strong></td>
+                    <td>${esc(t.region)}</td>
+                    <td><span style="color:var(--primary-neon); font-weight:700;">${count} registered</span></td>
+                    <td>${author(t)}</td>
+                    <td>${ownerButtons('teams', t)}</td>
+                </tr>`;
+            }).join('') || `<tr><td colspan="5" class="muted" style="text-align:center;">No teams to show yet.</td></tr>`;
+
+            // Tournaments
+            const tourneys = visible('tournaments', data.tournaments);
+            document.querySelector('#tournament-table tbody').innerHTML = tourneys.map(trn => {
+                const count = data.players.filter(p => p.tournament_id === trn.id).length;
+                let when = 'Unscheduled';
+                if (trn.starts_at) {
+                    const d = new Date(trn.starts_at);
+                    when = d.toLocaleDateString() + ' @ ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                }
+                return `<tr class="${isMine(trn) ? 'mine' : ''}">
+                    <td><strong>${esc(trn.name)}</strong></td>
+                    <td>${esc(trn.game)}</td>
+                    <td><span style="color:#f1c40f; font-weight:600;">⏰ ${esc(when)}</span></td>
+                    <td><span class="pill active">${count} enrolled</span></td>
+                    <td>${author(trn)}</td>
+                    <td><button class="btn-mini-action" style="border-color:var(--primary-neon); color:var(--primary-neon);" onclick="showBracket('${esc(trn.id)}')">View bracket</button></td>
+                    <td>${ownerButtons('tournaments', trn)}</td>
+                </tr>`;
+            }).join('') || `<tr><td colspan="7" class="muted" style="text-align:center;">No tournaments to show yet.</td></tr>`;
+
+            rebootMatchTickerLoop();
+        }
+
+        /* =====================================================================
+           MATCH TICKER
+           ===================================================================== */
+        function computeLiveTickerFeed() {
+            const box = document.getElementById('match-ticker-box');
+            box.innerHTML = '';
             const mapOptions = ['SQL Depths Arena', 'RSN Neon Grid', 'Cyber Sector', 'Data Core Alpha', 'Towson Center Main'];
+            let shown = 0;
 
-            for (const tourney of state.tournaments) {
-                const pool = state.players.filter(p => p.tourney === tourney.name);
-                for (let i = 0; i < pool.length - 1 && matchPairsTracked < 4; i += 2) {
-                    const pA = pool[i], pB = pool[i + 1];
-
-                    let clockText = 'LOBBY SECURING';
-                    if (tourney.time) {
-                        const secs = Math.max(0, Math.floor((new Date(tourney.time).getTime() - Date.now()) / 1000));
-                        clockText = secs > 0
-                            ? `COUNTDOWN: ${Math.floor(secs / 3600)}h ${Math.floor((secs % 3600) / 60)}m`
-                            : 'LIVE MATCH RUNNING';
+            for (const trn of data.tournaments) {
+                const pool = data.players.filter(p => p.tournament_id === trn.id);
+                for (let i = 0; i < pool.length - 1 && shown < 4; i += 2) {
+                    const a = pool[i], b = pool[i + 1];
+                    let clock = 'LOBBY SECURING';
+                    if (trn.starts_at) {
+                        const secs = Math.max(0, Math.floor((new Date(trn.starts_at) - Date.now()) / 1000));
+                        clock = secs > 0 ? `COUNTDOWN: ${Math.floor(secs / 3600)}h ${Math.floor((secs % 3600) / 60)}m` : 'LIVE MATCH RUNNING';
                     }
-                    const targetMap = mapOptions[(pA.tag.length + pB.tag.length) % mapOptions.length];
-
+                    const map = mapOptions[(a.tag.length + b.tag.length) % mapOptions.length];
                     const row = document.createElement('div');
                     row.className = 'ticker-row';
                     row.innerHTML = `
                         <div>
-                            <strong style="color:var(--text-light); font-size:1.05rem;">${esc(pA.tag)}</strong>
-                            <span style="font-size:0.75rem; color:var(--text-muted);">(${esc(pA.team)})</span>
+                            <strong style="color:var(--text-light); font-size:1.05rem;">${esc(a.tag)}</strong>
+                            <span style="font-size:0.75rem; color:var(--text-muted);">(${esc(teamName(a.team_id))})</span>
                             <span class="match-vs">VS</span>
-                            <strong style="color:var(--text-light); font-size:1.05rem;">${esc(pB.tag)}</strong>
-                            <span style="font-size:0.75rem; color:var(--text-muted);">(${esc(pB.team)})</span>
+                            <strong style="color:var(--text-light); font-size:1.05rem;">${esc(b.tag)}</strong>
+                            <span style="font-size:0.75rem; color:var(--text-muted);">(${esc(teamName(b.team_id))})</span>
                             <div style="font-size:0.8rem; color:var(--secondary-neon); margin-top:5px; font-weight:600;">
-                                🏆 ${esc(tourney.name)} (${esc(tourney.game)}) • 🎮 Map: ${esc(targetMap)}
+                                🏆 ${esc(trn.name)} (${esc(trn.game)}) • 🎮 Map: ${esc(map)}
                             </div>
                         </div>
-                        <div class="lobby-countdown">${clockText}</div>`;
-                    container.appendChild(row);
-                    matchPairsTracked++;
+                        <div class="lobby-countdown">${clock}</div>`;
+                    box.appendChild(row);
+                    shown++;
                 }
-                if (matchPairsTracked >= 4) break;
+                if (shown >= 4) break;
             }
-
-            if (matchPairsTracked === 0) {
-                container.innerHTML = `<div class="empty-note">⏳ No matchups yet. Register at least 2 players in the same tournament.</div>`;
+            if (shown === 0) {
+                box.innerHTML = `<div class="empty-note">⏳ No matchups yet. A tournament needs at least 2 registered players.</div>`;
             }
         }
 
@@ -733,300 +916,75 @@
         }
 
         /* =====================================================================
-           7. BRACKET
+           BRACKET
            ===================================================================== */
-        function generateLiveTournamentBracket(tourneyUID) {
-            const tourney = state.tournaments.find(t => t.id === tourneyUID);
-            if (!tourney) return;
+        function showBracket(id) {
+            const trn = findTourney(id);
+            if (!trn) return;
+            const entrants = data.players.filter(p => p.tournament_id === id);
+            const zone = document.getElementById('bracket-display-zone');
+            const root = document.getElementById('bracket-tree-root');
 
-            const entrants = state.players.filter(p => p.tourney === tourney.name);
-            const displayZone = document.getElementById('bracket-display-zone');
-            const treeRoot = document.getElementById('bracket-tree-root');
-
-            document.getElementById('bracket-view-title').textContent = `Bracket: ${tourney.name}`;
-            document.getElementById('bracket-view-meta').textContent = `Game: ${tourney.game} • ${entrants.length} players entered`;
-            treeRoot.innerHTML = '';
-            displayZone.style.display = 'block';
+            document.getElementById('bracket-view-title').textContent = `Bracket: ${trn.name}`;
+            document.getElementById('bracket-view-meta').textContent = `Game: ${trn.game} • ${entrants.length} players entered`;
+            zone.style.display = 'block';
 
             if (entrants.length < 2) {
-                treeRoot.innerHTML = `<div style="color:var(--accent-red); font-weight:600; padding:20px;">⚠️ This tournament needs at least 2 players before a bracket can be built.</div>`;
+                root.innerHTML = `<div style="color:var(--accent-red); font-weight:600; padding:20px;">⚠️ This tournament needs at least 2 players before a bracket can be built.</div>`;
                 return;
             }
 
             const slots = [...entrants];
-            if (slots.length % 2 !== 0) slots.push({ tag: 'BYE', team: 'Auto Advance' });
+            if (slots.length % 2 !== 0) slots.push({ tag: 'BYE' });
 
             let r1 = `<div class="bracket-round"><div class="round-title">Round 1</div>`;
             for (let i = 0; i < slots.length; i += 2) {
-                r1 += `
-                    <div class="bracket-match">
-                        <div class="bracket-team-row"><span class="bracket-team-name">🔺 ${esc(slots[i].tag)}</span><input type="number" class="bracket-score-input" value="0" min="0" aria-label="Score"></div>
-                        <div class="bracket-team-row"><span class="bracket-team-name">🔻 ${esc(slots[i + 1].tag)}</span><input type="number" class="bracket-score-input" value="0" min="0" aria-label="Score"></div>
-                    </div>`;
+                r1 += `<div class="bracket-match">
+                    <div class="bracket-team-row"><span class="bracket-team-name">🔺 ${esc(slots[i].tag)}</span><input type="number" class="bracket-score-input" value="0" min="0" aria-label="Score"></div>
+                    <div class="bracket-team-row"><span class="bracket-team-name">🔻 ${esc(slots[i + 1].tag)}</span><input type="number" class="bracket-score-input" value="0" min="0" aria-label="Score"></div>
+                </div>`;
             }
             r1 += `</div>`;
 
             const r2Count = Math.max(1, Math.ceil(slots.length / 4));
             let r2 = `<div class="bracket-round"><div class="round-title">Semifinals</div>`;
             for (let j = 0; j < r2Count; j++) {
-                r2 += `
-                    <div class="bracket-match">
-                        <div class="bracket-team-row"><span class="bracket-team-name" style="color:var(--text-muted);">TBD (Winner M${j * 2 + 1})</span><input type="number" class="bracket-score-input" value="0" disabled></div>
-                        <div class="bracket-team-row"><span class="bracket-team-name" style="color:var(--text-muted);">TBD (Winner M${j * 2 + 2})</span><input type="number" class="bracket-score-input" value="0" disabled></div>
-                    </div>`;
+                r2 += `<div class="bracket-match">
+                    <div class="bracket-team-row"><span class="bracket-team-name" style="color:var(--text-muted);">TBD (Winner M${j * 2 + 1})</span><input type="number" class="bracket-score-input" value="0" disabled></div>
+                    <div class="bracket-team-row"><span class="bracket-team-name" style="color:var(--text-muted);">TBD (Winner M${j * 2 + 2})</span><input type="number" class="bracket-score-input" value="0" disabled></div>
+                </div>`;
             }
             r2 += `</div>`;
 
-            const crown = `
-                <div class="bracket-round">
-                    <div class="round-title" style="color:#f1c40f">🏆 Grand Finals</div>
-                    <div class="bracket-match" style="border-color:#f1c40f;">
-                        <div class="bracket-team-row" style="background:rgba(241,196,15,0.05)">
-                            <span class="bracket-team-name" style="color:#f1c40f; font-weight:800;">🏆 TBD CHAMPION</span>
-                        </div>
-                    </div>
-                </div>`;
+            const crown = `<div class="bracket-round">
+                <div class="round-title" style="color:#f1c40f">🏆 Grand Finals</div>
+                <div class="bracket-match" style="border-color:#f1c40f;">
+                    <div class="bracket-team-row" style="background:rgba(241,196,15,0.05)"><span class="bracket-team-name" style="color:#f1c40f; font-weight:800;">🏆 TBD CHAMPION</span></div>
+                </div></div>`;
 
-            treeRoot.innerHTML = r1 + r2 + crown;
-            treeRoot.scrollIntoView({ behavior: 'smooth' });
+            root.innerHTML = r1 + r2 + crown;
+            root.scrollIntoView({ behavior: 'smooth' });
         }
 
         /* =====================================================================
-           8. EDIT MODAL
+           STARTUP
            ===================================================================== */
-        function triggerInlineEditPanel(targetType, targetUID) {
-            currentEditingItem = { type: targetType, id: targetUID };
-            const formPane = document.getElementById('editModalFormContent');
-            const titleNode = document.getElementById('editModalTitle');
-
-            if (targetType === 'player') {
-                const p = state.players.find(x => x.id === targetUID);
-                if (!p) return;
-                titleNode.textContent = `Edit player: ${p.tag}`;
-                const teamOpts = state.teams.map(t => `<option value="${esc(t.name)}" ${t.name === p.team ? 'selected' : ''}>${esc(t.name)}</option>`).join('');
-                const tourneyOpts = state.tournaments.map(t => `<option value="${esc(t.name)}" ${t.name === p.tourney ? 'selected' : ''}>${esc(t.name)}</option>`).join('');
-                formPane.innerHTML = `
-                    <div class="form-group"><label>Full name</label><input type="text" id="mod-p-name" value="${esc(p.name)}"></div>
-                    <div class="form-group"><label>Gamer tag</label><input type="text" id="mod-p-tag" value="${esc(p.tag)}"></div>
-                    <div class="form-group"><label>Email</label><input type="email" id="mod-p-email" value="${esc(p.email)}"></div>
-                    <div class="form-group"><label>Phone</label><input type="text" id="mod-p-phone" value="${esc(p.phone)}"></div>
-                    <div class="form-group"><label>Team</label><select id="mod-p-team">${teamOpts}</select></div>
-                    <div class="form-group"><label>Tournament</label><select id="mod-p-tourney"><option value="">None</option>${tourneyOpts}</select></div>
-                    <div class="form-section-title" style="margin-top:15px;">Console handles</div>
-                    <div class="form-group"><label>PSN</label><input type="text" id="mod-net-psn" value="${esc(p.networks?.psn)}"></div>
-                    <div class="form-group"><label>Xbox</label><input type="text" id="mod-net-xbox" value="${esc(p.networks?.xbox)}"></div>
-                    <div class="form-group"><label>Steam</label><input type="text" id="mod-net-steam" value="${esc(p.networks?.steam)}"></div>`;
-            } else if (targetType === 'team') {
-                const t = state.teams.find(x => x.id === targetUID);
-                if (!t) return;
-                titleNode.textContent = 'Edit team';
-                formPane.innerHTML = `
-                    <div class="form-group"><label>Team name</label><input type="text" id="mod-t-name" value="${esc(t.name)}"></div>
-                    <div class="form-group"><label>Home region</label><input type="text" id="mod-t-region" value="${esc(t.region)}"></div>`;
-            } else if (targetType === 'tournament') {
-                const trn = state.tournaments.find(x => x.id === targetUID);
-                if (!trn) return;
-                titleNode.textContent = 'Edit tournament';
-                formPane.innerHTML = `
-                    <div class="form-group"><label>Event title</label><input type="text" id="mod-trn-name" value="${esc(trn.name)}"></div>
-                    <div class="form-group"><label>Game</label><input type="text" id="mod-trn-game" value="${esc(trn.game)}"></div>
-                    <div class="form-group"><label>Start time</label><input type="datetime-local" id="mod-trn-time" value="${esc(trn.time)}"></div>`;
-            }
-            document.getElementById('editModal').classList.add('active');
-        }
-
-        document.getElementById('editModalSaveBtn').onclick = function () {
-            if (!currentEditingItem) return;
-            const { type, id } = currentEditingItem;
-            const val = elId => document.getElementById(elId).value.trim();
-
-            if (type === 'player') {
-                const p = state.players.find(x => x.id === id);
-                Object.assign(p, {
-                    name: val('mod-p-name'), tag: val('mod-p-tag'), email: val('mod-p-email'), phone: val('mod-p-phone'),
-                    team: val('mod-p-team'), tourney: val('mod-p-tourney'),
-                    networks: { psn: val('mod-net-psn'), xbox: val('mod-net-xbox'), steam: val('mod-net-steam') }
-                });
-            } else if (type === 'team') {
-                const t = state.teams.find(x => x.id === id);
-                const newName = val('mod-t-name');
-                state.players.forEach(p => { if (p.team === t.name) p.team = newName; });
-                t.name = newName;
-                t.region = val('mod-t-region');
-            } else if (type === 'tournament') {
-                const trn = state.tournaments.find(x => x.id === id);
-                const newName = val('mod-trn-name');
-                state.players.forEach(p => { if (p.tourney === trn.name) p.tourney = newName; });
-                trn.name = newName;
-                trn.game = val('mod-trn-game');
-                trn.time = val('mod-trn-time');
-            }
-            closeModal('editModal');
-            commitToDisk();
-        };
-
-        /* =====================================================================
-           9. CREATE / DELETE
-           ===================================================================== */
-        function registerPlayerProfile(e) {
-            e.preventDefault();
-            const val = elId => document.getElementById(elId).value.trim();
-            state.players.push({
-                id: newId('PL'),
-                name: val('p-name'), tag: val('p-tag'), email: val('p-email'), phone: val('p-phone'),
-                team: val('p-team-select'), tourney: val('p-tourney-select'),
-                networks: { psn: val('net-psn'), xbox: val('net-xbox'), steam: val('net-steam') }
-            });
-            document.getElementById('player-form').reset();
-            commitToDisk();
-        }
-
-        function createNewTeamRecord(e) {
-            e.preventDefault();
-            state.teams.push({
-                id: newId('TM'),
-                name: document.getElementById('team-name').value.trim(),
-                region: document.getElementById('team-region').value.trim()
-            });
-            document.getElementById('team-form').reset();
-            commitToDisk();
-        }
-
-        function launchTournamentEvent(e) {
-            e.preventDefault();
-            state.tournaments.push({
-                id: newId('TRN'),
-                name: document.getElementById('t-name').value.trim(),
-                game: document.getElementById('t-game').value.trim(),
-                time: document.getElementById('t-time').value
-            });
-            document.getElementById('tournament-form').reset();
-            commitToDisk();
-        }
-
-        function removeCompetitor(id) {
-            if (!confirm('Remove this player?')) return;
-            state.players = state.players.filter(p => p.id !== id);
-            commitToDisk();
-        }
-
-        function removeTeam(id) {
-            const t = state.teams.find(x => x.id === id);
-            if (!t || !confirm(`Delete team "${t.name}"? Its players move to Free Agent.`)) return;
-            state.players.forEach(p => { if (p.team === t.name) p.team = 'Free Agent'; });
-            state.teams = state.teams.filter(x => x.id !== id);
-            if (!state.teams.some(x => x.name === 'Free Agent')) {
-                state.teams.unshift({ id: 'TM-01', name: 'Free Agent', region: 'Global Network' });
-            }
-            commitToDisk();
-        }
-
-        function removeTournament(id) {
-            const trn = state.tournaments.find(x => x.id === id);
-            if (!trn || !confirm(`Cancel "${trn.name}"? Its players stay registered but leave this tournament.`)) return;
-            state.players.forEach(p => { if (p.tourney === trn.name) p.tourney = ''; });
-            state.tournaments = state.tournaments.filter(x => x.id !== id);
-            document.getElementById('bracket-display-zone').style.display = 'none';
-            commitToDisk();
-        }
-
-        function purgeDatabase() {
-            if (!confirm('Reset your workspace? This permanently deletes all your players, teams and tournaments.')) return;
-            state = emptyState();
-            commitToDisk();
-        }
-
-        /* =====================================================================
-           10. RENDER
-           ===================================================================== */
-        function renderViewPipeline() {
-            document.getElementById('stat-players').textContent = state.players.length;
-            document.getElementById('stat-teams').textContent = state.teams.length;
-            document.getElementById('stat-tournaments').textContent = state.tournaments.length;
-
-            document.getElementById('p-team-select').innerHTML =
-                state.teams.map(t => `<option value="${esc(t.name)}">${esc(t.name)}</option>`).join('');
-            document.getElementById('p-tourney-select').innerHTML =
-                `<option value="">None</option>` +
-                state.tournaments.map(t => `<option value="${esc(t.name)}">${esc(t.name)}</option>`).join('');
-
-            // Players
-            document.querySelector('#player-table tbody').innerHTML = state.players.map(p => {
-                const n = p.networks || {};
-                let badges = '';
-                if (n.psn) badges += `<span class="pill psn">PSN: ${esc(n.psn)}</span> `;
-                if (n.xbox) badges += `<span class="pill xbox">Xbox: ${esc(n.xbox)}</span> `;
-                if (n.steam) badges += `<span class="pill steam">Steam: ${esc(n.steam)}</span>`;
-                if (!badges) badges = `<span style="color:var(--text-muted); font-size:0.8rem; font-style:italic;">None</span>`;
-                return `<tr>
-                    <td><code>${esc(p.id)}</code></td>
-                    <td><span style="color:var(--text-light); font-weight:600;">${esc(p.name)}</span></td>
-                    <td><strong style="color:var(--primary-neon);">${esc(p.tag)}</strong></td>
-                    <td style="font-size:0.85rem; line-height:1.4;"><div>📧 ${esc(p.email)}</div><div style="color:var(--text-muted);">📱 ${esc(p.phone)}</div></td>
-                    <td><span style="color:var(--secondary-neon); font-weight:600;">${esc(p.team)}</span></td>
-                    <td><div style="display:flex; gap:4px; flex-wrap:wrap;">${badges}</div></td>
-                    <td>${p.tourney ? `<span class="pill active">${esc(p.tourney)}</span>` : '<span style="color:var(--text-muted);">None</span>'}</td>
-                    <td>
-                        <button class="btn-mini-action" onclick="triggerInlineEditPanel('player', '${esc(p.id)}')">Edit</button>
-                        <button class="btn-danger" onclick="removeCompetitor('${esc(p.id)}')">Remove</button>
-                    </td>
-                </tr>`;
-            }).join('') || `<tr><td colspan="8" style="color:var(--text-muted); text-align:center;">No players yet. Use the form above to register one.</td></tr>`;
-
-            // Teams
-            document.querySelector('#teams-table tbody').innerHTML = state.teams.map(t => {
-                const count = state.players.filter(p => p.team === t.name).length;
-                return `<tr>
-                    <td><code>${esc(t.id)}</code></td>
-                    <td><strong>${esc(t.name)}</strong></td>
-                    <td>${esc(t.region)}</td>
-                    <td><span style="color:var(--primary-neon); font-weight:700;">${count} registered</span></td>
-                    <td>
-                        <button class="btn-mini-action" onclick="triggerInlineEditPanel('team', '${esc(t.id)}')">Edit</button>
-                        <button class="btn-danger" onclick="removeTeam('${esc(t.id)}')">Delete</button>
-                    </td>
-                </tr>`;
-            }).join('');
-
-            // Tournaments
-            document.querySelector('#tournament-table tbody').innerHTML = state.tournaments.map(trn => {
-                const count = state.players.filter(p => p.tourney === trn.name).length;
-                let when = 'Unscheduled';
-                if (trn.time) {
-                    const d = new Date(trn.time);
-                    when = d.toLocaleDateString() + ' @ ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                }
-                return `<tr>
-                    <td><code>${esc(trn.id)}</code></td>
-                    <td><strong>${esc(trn.name)}</strong></td>
-                    <td>${esc(trn.game)}</td>
-                    <td><span style="color:#f1c40f; font-weight:600;">⏰ ${esc(when)}</span></td>
-                    <td><span class="pill active">${count} enrolled</span></td>
-                    <td><button class="btn-mini-action" style="border-color:var(--primary-neon); color:var(--primary-neon);" onclick="generateLiveTournamentBracket('${esc(trn.id)}')">View bracket</button></td>
-                    <td>
-                        <button class="btn-mini-action" onclick="triggerInlineEditPanel('tournament', '${esc(trn.id)}')">Edit</button>
-                        <button class="btn-danger" onclick="removeTournament('${esc(trn.id)}')">Cancel event</button>
-                    </td>
-                </tr>`;
-            }).join('') || `<tr><td colspan="7" style="color:var(--text-muted); text-align:center;">No tournaments yet. Add one above.</td></tr>`;
-        }
-
-        /* =====================================================================
-           11. STARTUP
-           ===================================================================== */
-        if (!isConfigured) {
+        if (!sb) {
             document.getElementById('config-warning').style.display = 'block';
-            document.body.classList.remove('booting');
+            setLive(false);
         } else {
-            // Fires once on load with the saved session (if any), then on every sign in / sign out.
-            // setTimeout keeps Supabase calls out of the auth callback, as Supabase recommends.
+            // Fires once on page load (with or without a saved session), then on every sign in / out
             sb.auth.onAuthStateChange((_event, session) => {
                 setTimeout(() => handleSession(session), 0);
             });
-        }
-    </script>
-</body>
-</html>
+
+            // Live updates: when anyone adds/edits/deletes, everyone's page refreshes
+            sb.channel('rsn-portal-changes')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'teams' }, queueRefresh)
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'tournaments' }, queueRefresh)
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, queueRefresh)
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, queueRefresh)
+                .subscribe(status => setLive(status === 'SUBSCRIBED'));
         }
     </script>
 </body>
